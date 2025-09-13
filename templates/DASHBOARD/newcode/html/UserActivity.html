@@ -1,0 +1,268 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - User Activity</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="{% static 'DASHBOARD/CSS/UserActivity.css' %}" rel="stylesheet">
+</head>
+<body>
+  <div class="container-fluid py-4">
+    <div class="row">
+      <div class="col-lg-11 col-xl-10 mx-auto">
+        <!-- Header -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
+          <div class="mb-3 mb-md-0">
+            <h4 class="fw-bold mb-1">User Activity</h4>
+            <p class="text-muted mb-0">Monitor and manage all user actions in real-time</p>
+          </div>
+          <div class="d-flex gap-2">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" class="form-control" placeholder="Search users or activities..." style="width: 240px;">
+            </div>
+            <button class="btn btn-outline-primary d-flex align-items-center">
+              <i class="fas fa-sliders-h me-1"></i> Filters
+            </button>
+          </div>
+        </div>
+        
+        <!-- Stats Row -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-6 col-lg-3">
+            <div class="card stat-card">
+              <div class="stat-icon primary">
+                <i class="fas fa-users"></i>
+              </div>
+              <div>
+                <h6 class="text-muted mb-1">Active Users</h6>
+                <h3 class="mb-0">1,243</h3>
+                <span class="text-success small"><i class="fas fa-arrow-up"></i> 12%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6 col-lg-3">
+            <div class="card stat-card">
+              <div class="stat-icon success">
+                <i class="fas fa-comment-dots"></i>
+              </div>
+              <div>
+                <h6 class="text-muted mb-1">Messages</h6>
+                <h3 class="mb-0">8,742</h3>
+                <span class="text-success small"><i class="fas fa-arrow-up"></i> 5%</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6 col-lg-3">
+            <div class="card stat-card">
+              <div class="stat-icon danger">
+                <i class="fas fa-flag"></i>
+              </div>
+              <div>
+                <h6 class="text-muted mb-1">Reports</h6>
+                <h3 class="mb-0">24</h3>
+                <span class="text-danger small"><i class="fas fa-arrow-up"></i> 3 new</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6 col-lg-3">
+            <div class="card stat-card">
+              <div class="stat-icon warning">
+                <i class="fas fa-clock"></i>
+              </div>
+              <div>
+                <h6 class="text-muted mb-1">Avg. Session</h6>
+                <h3 class="mb-0">12.4m</h3>
+                <span class="text-danger small"><i class="fas fa-arrow-down"></i> 8%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="row">
+          <!-- Activity Feed -->
+          <div class="col-lg-8 mb-4">
+            <div class="card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                  <h5 class="mb-0">Recent Activity</h5>
+                  <div>
+                    <ul class="nav nav-pills">
+                      <li class="nav-item">
+                        <a class="nav-link active" href="#">All</a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link" href="#">Messages</a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link" href="#">Logins</a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link" href="#">Reports</a>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div class="activity-list">
+                  <!-- Activity Item 1 -->
+                  <div class="activity-item activity-message">
+                    <div class="d-flex justify-content-between">
+                      <div class="d-flex align-items-center mb-2">
+                        <img src="https://i.pravatar.cc/150?img=5" class="avatar me-3">
+                        <div>
+                          <h6 class="mb-0">John Doe</h6>
+                          <span class="text-muted small">Sent a message</span>
+                        </div>
+                      </div>
+                      <span class="text-muted small">2 min ago</span>
+                    </div>
+                    <p class="mb-2">"Has everyone reviewed the new project requirements?"</p>
+                    <div>
+                      <span class="badge bg-light text-dark me-2">#general</span>
+                      <button class="btn btn-sm action-btn btn-outline-primary">View</button>
+                      <button class="btn btn-sm action-btn btn-outline-secondary ms-1">Context</button>
+                    </div>
+                  </div>
+                  
+                  <!-- Activity Item 2 -->
+                  <div class="activity-item activity-report">
+                    <div class="d-flex justify-content-between">
+                      <div class="d-flex align-items-center mb-2">
+                        <img src="https://i.pravatar.cc/150?img=11" class="avatar me-3">
+                        <div>
+                          <h6 class="mb-0">Jane Smith</h6>
+                          <span class="text-muted small">Reported a message</span>
+                        </div>
+                      </div>
+                      <span class="text-muted small">15 min ago</span>
+                    </div>
+                    <p class="mb-2">"This message contains offensive language"</p>
+                    <div>
+                      <span class="badge bg-danger text-white me-2">Harassment</span>
+                      <button class="btn btn-sm action-btn btn-outline-primary">Review</button>
+                      <button class="btn btn-sm action-btn btn-outline-danger ms-1">Ban User</button>
+                    </div>
+                  </div>
+                  
+                  <!-- Activity Item 3 -->
+                  <div class="activity-item activity-login">
+                    <div class="d-flex justify-content-between">
+                      <div class="d-flex align-items-center mb-2">
+                        <img src="https://i.pravatar.cc/150?img=3" class="avatar me-3">
+                        <div>
+                          <h6 class="mb-0">Alex Johnson</h6>
+                          <span class="text-muted small">Logged in</span>
+                        </div>
+                      </div>
+                      <span class="text-muted small">1 hour ago</span>
+                    </div>
+                    <p class="mb-2">New device detected: iPhone 13 (Safari)</p>
+                    <div>
+                      <span class="badge bg-light text-dark me-2">192.168.1.100</span>
+                      <button class="btn btn-sm action-btn btn-outline-warning">Verify</button>
+                      <button class="btn btn-sm action-btn btn-outline-secondary ms-1">Details</button>
+                    </div>
+                  </div>
+                  
+                  <!-- Activity Item 4 -->
+                  <div class="activity-item activity-moderation">
+                    <div class="d-flex justify-content-between">
+                      <div class="d-flex align-items-center mb-2">
+                        <img src="https://i.pravatar.cc/150?img=8" class="avatar me-3">
+                        <div>
+                          <h6 class="mb-0">Mike Brown</h6>
+                          <span class="text-muted small">Account suspended</span>
+                        </div>
+                      </div>
+                      <span class="text-muted small">3 hours ago</span>
+                    </div>
+                    <p class="mb-2">Multiple violations of community guidelines</p>
+                    <div>
+                      <span class="badge bg-warning text-dark me-2">7-day ban</span>
+                      <button class="btn btn-sm action-btn btn-outline-secondary">Details</button>
+                      <button class="btn btn-sm action-btn btn-outline-success ms-1">Appeal</button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                  <button class="btn btn-sm btn-link text-primary">Load More Activity</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right Column -->
+          <div class="col-lg-4">
+            <!-- Active Users -->
+            <div class="card mb-4">
+              <div class="card-body">
+                <h5 class="mb-3">Top Active Users</h5>
+                
+                <div class="user-card mb-2">
+                  <img src="https://i.pravatar.cc/150?img=5" class="avatar me-3">
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0">John Doe</h6>
+                    <span class="text-muted small">142 actions today</span>
+                  </div>
+                  <span class="badge bg-primary rounded-pill">Active</span>
+                </div>
+                
+                <div class="user-card mb-2">
+                  <img src="https://i.pravatar.cc/150?img=11" class="avatar me-3">
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0">Jane Smith</h6>
+                    <span class="text-muted small">98 actions today</span>
+                  </div>
+                  <span class="badge bg-primary rounded-pill">Active</span>
+                </div>
+                
+                <div class="user-card mb-2">
+                  <img src="https://i.pravatar.cc/150?img=3" class="avatar me-3">
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0">Alex Johnson</h6>
+                    <span class="text-muted small">76 actions today</span>
+                  </div>
+                  <span class="badge bg-primary rounded-pill">Active</span>
+                </div>
+                
+                <div class="user-card">
+                  <img src="https://i.pravatar.cc/150?img=9" class="avatar me-3">
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0">Emma Wilson</h6>
+                    <span class="text-muted small">65 actions today</span>
+                  </div>
+                  <span class="badge bg-primary rounded-pill">Active</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Activity Chart -->
+            <div class="card">
+              <div class="card-body">
+                <h5 class="mb-3">Activity Timeline</h5>
+                <div class="chart-placeholder">
+                  [Activity over time chart]
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
