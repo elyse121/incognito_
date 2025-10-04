@@ -407,38 +407,6 @@
               <!-- Messages will be loaded here -->
             </div>
           </div>
-          
-          <!------Ban user conversations btn them   
-          <div class="modal-footer bg-light">
-            <button class="btn btn-danger me-auto ban-user-btn"
-                    data-user-id="{{ partner.id }}"
-                    data-partner-name="{{ partner.username }}">
-                <i class="fas fa-ban me-1"></i> Ban User
-            </button>
-
-            <script>
-                  document.querySelectorAll('.ban-convo-btn').forEach(button => {
-                    button.addEventListener('click', function () {
-                        const user1 = this.getAttribute('data-user1-id');
-                        const user2 = this.getAttribute('data-user2-id');
-
-                        fetch("{% url 'toggle_block_conversation' %}", {
-                            method: "POST",
-                            headers: {
-                                "X-CSRFToken": getCookie("csrftoken"),
-                                "Content-Type": "application/x-www-form-urlencoded",
-                            },
-                            body: `user1_id=${user1}&user2_id=${user2}`
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            alert(data.message);
-                        });
-                    });
-                });
-            </script>
-            ------>
-
             <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
               <i class="fas fa-times me-1"></i> Close
             </button>
@@ -456,287 +424,266 @@
   
   <!-- Custom JavaScript -->
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const conversationModal = new bootstrap.Modal(document.getElementById('conversationModal'));
-      const correctPassword = "admin123"; // 🔑 change this to your real admin password
-      let selectedUserId = null;
-      let selectedPartnerId = null;
+document.addEventListener('DOMContentLoaded', function() {
+  const conversationModal = new bootstrap.Modal(document.getElementById('conversationModal'));
+  const correctPassword = "admin123"; // 🔑 change to your real password
+  let selectedUserId = null;
+  let selectedPartnerId = null;
 
-      // View Partners
-      document.querySelectorAll('.view-partners-btn').forEach(button => {
-        button.addEventListener('click', function() {
-          selectedUserId = Number(this.getAttribute('data-user-id'));
-          const username = this.getAttribute('data-username');
-
-          document.getElementById('usersTable').classList.add('d-none');
-          document.getElementById('partnersPanel').classList.remove('d-none');
-          document.getElementById('selectedUserName').textContent = username;
-
-          document.querySelectorAll('.partners-container').forEach(c => c.classList.add('d-none'));
-          document.getElementById(`partnersContainer${selectedUserId}`).classList.remove('d-none');
-        });
-      });
-
-      // Back to Users
-      document.getElementById('backToUsersBtn').addEventListener('click', function() {
-        document.getElementById('partnersPanel').classList.add('d-none');
-        document.getElementById('usersTable').classList.remove('d-none');
-        selectedUserId = null;
-      });
-
-      // View Conversation
-      document.querySelectorAll('.view-conversation-btn').forEach(button => {
-        button.addEventListener('click', async function() {
-          const partnerCard = this.closest('.partner-card');
-          const partnerName = partnerCard.querySelector('.partner-name').textContent;
-          selectedPartnerId = Number(partnerCard.dataset.partnerId);
-
-          if (!selectedUserId || !selectedPartnerId) {
-            alert("Missing selected user or partner id.");
-            return;
-          }
-
-          document.getElementById('partnerName').textContent = partnerName;
-          conversationModal.show();
-        });
-      });
-
-      // Password check
-      document.getElementById('checkPasswordBtn').addEventListener('click', async function() {
-        const passwordInput = document.getElementById('adminPasswordInput');
-        const passwordError = document.getElementById('passwordError');
-        
-        if (passwordInput.value === correctPassword) {
-          document.getElementById('passwordLayer').classList.add('d-none');
-          document.getElementById('conversationContent').classList.remove('d-none');
-          
-          const conversationContainer = document.getElementById('conversationContainer');
-          const partnerName = document.getElementById('partnerName').textContent;
-          
-          conversationContainer.innerHTML = `
-            <div class="text-center py-4">
-              <i class="fas fa-spinner fa-spin fa-2x"></i>
-              <p>Loading conversation with ${partnerName}...</p>
-            </div>
-          `;
-
-          try {
-            const response = await fetch(`/dashboard/api/conversation/?user_id=${selectedUserId}&partner_id=${selectedPartnerId}`, {
-              headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-
-            if (!response.ok) throw new Error('Failed to load conversation');
-
-            const data = await response.json();
-
-            if (data.error) {
-              conversationContainer.innerHTML = `<p class="text-danger">${data.error}</p>`;
-              return;
-            }
-
-            if (!data.messages || data.messages.length === 0) {
-              conversationContainer.innerHTML = `
-                <div class="text-center py-4">
-                  <i class="fas fa-comment-slash fa-2x text-muted mb-3"></i>
-                  <p class="text-muted">No messages between users yet.</p>
-                </div>
-              `;
-              document.getElementById('lastMessageTime').textContent = 'No messages yet';
-              return;
-            }
-
-            // Style messages
-            conversationContainer.innerHTML = data.messages.map(msg => {
-              const isFromSelectedUser = msg.sender_id === selectedUserId;
-              return `
-                <div class="message ${isFromSelectedUser ? 'message-sent' : 'message-received'} p-3 mb-2"
-                    style="max-width: 75%;">
-                  <div class="message-content">${msg.message}</div>
-                  <div class="message-meta small text-muted mt-1 d-flex justify-content-between">
-                    <span>${msg.sender_username}</span>
-                    <span>${new Date(msg.timestamp).toLocaleString()}</span>
-                  </div>
-                </div>
-              `;
-            }).join('');
-
-            conversationContainer.scrollTop = conversationContainer.scrollHeight;
-
-            const lastMsg = data.messages[data.messages.length - 1];
-            document.getElementById('lastMessageTime').textContent = new Date(lastMsg.timestamp).toLocaleString();
-
-            document.querySelector('.ban-user-btn').innerHTML = `<i class="fas fa-ban me-1"></i> Ban ${document.getElementById('partnerName').textContent}`;
-          } catch (error) {
-            conversationContainer.innerHTML = `
-              <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Error loading conversation. Please try again.
-              </div>
-            `;
-            console.error(error);
-          }
-        } else {
-          passwordError.classList.remove('d-none');
-          passwordInput.value = "";
-          passwordInput.focus();
+  // --- CSRF helper ---
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.substring(0, name.length + 1) === (name + "=")) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
         }
-      });
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie("csrftoken");
 
-      // Allow pressing Enter key for password
-      document.getElementById('adminPasswordInput').addEventListener('keyup', function(e) {
-        if (e.key === "Enter") {
-          document.getElementById('checkPasswordBtn').click();
-        }
-      });
+  // View Partners
+  document.querySelectorAll('.view-partners-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      selectedUserId = Number(this.getAttribute('data-user-id'));
+      const username = this.getAttribute('data-username');
 
-      // Export conversation button
-      document.querySelector('.export-conversation-btn').addEventListener('click', function() {
-        const conversationContainer = document.getElementById('conversationContainer');
-        const messages = conversationContainer.querySelectorAll('.message');
+      document.getElementById('usersTable').classList.add('d-none');
+      document.getElementById('partnersPanel').classList.remove('d-none');
+      document.getElementById('selectedUserName').textContent = username;
 
-        if (messages.length === 0) {
-          alert("No messages to export!");
+      document.querySelectorAll('.partners-container').forEach(c => c.classList.add('d-none'));
+      document.getElementById(`partnersContainer${selectedUserId}`).classList.remove('d-none');
+    });
+  });
+
+  // Back to Users
+  document.getElementById('backToUsersBtn').addEventListener('click', function() {
+    document.getElementById('partnersPanel').classList.add('d-none');
+    document.getElementById('usersTable').classList.remove('d-none');
+    selectedUserId = null;
+  });
+
+  // View Conversation
+  document.querySelectorAll('.view-conversation-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const partnerCard = this.closest('.partner-card');
+      const partnerName = partnerCard.querySelector('.partner-name').textContent;
+      selectedPartnerId = Number(partnerCard.dataset.partnerId);
+
+      if (!selectedUserId || !selectedPartnerId) {
+        alert("Missing selected user or partner id.");
+        return;
+      }
+
+      document.getElementById('partnerName').textContent = partnerName;
+
+      // Reset modal to show password input again
+      document.getElementById('passwordLayer').classList.remove('d-none');
+      document.getElementById('conversationContent').classList.add('d-none');
+      document.getElementById('adminPasswordInput').value = "";
+      document.getElementById('passwordError').classList.add('d-none');
+
+      conversationModal.show();
+    });
+  });
+
+  // Password check
+  document.getElementById('checkPasswordBtn').addEventListener('click', async function() {
+    const passwordInput = document.getElementById('adminPasswordInput');
+    const passwordError = document.getElementById('passwordError');
+    
+    if (passwordInput.value === correctPassword) {
+      document.getElementById('passwordLayer').classList.add('d-none');
+      document.getElementById('conversationContent').classList.remove('d-none');
+      
+      const conversationContainer = document.getElementById('conversationContainer');
+      const partnerName = document.getElementById('partnerName').textContent;
+      
+      conversationContainer.innerHTML = `
+        <div class="text-center py-4">
+          <i class="fas fa-spinner fa-spin fa-2x"></i>
+          <p>Loading conversation with ${partnerName}...</p>
+        </div>
+      `;
+
+      try {
+        const response = await fetch(`/dashboard/api/conversation/?user_id=${selectedUserId}&partner_id=${selectedPartnerId}`, {
+          headers: { 
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to load conversation');
+
+        const data = await response.json();
+
+        if (data.error) {
+          conversationContainer.innerHTML = `<p class="text-danger">${data.error}</p>`;
           return;
         }
 
-        // Prepare CSV content
-        let csvContent = "Timestamp,Sender,Message\n";
-
-        messages.forEach(msgDiv => {
-          const messageText = msgDiv.querySelector('.message-content').textContent
-            .replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, " "); // sanitize
-          
-          const meta = msgDiv.querySelector('.message-meta');
-          const sender = meta.querySelector('span:first-child').textContent;
-          const timestamp = meta.querySelector('span:last-child').textContent;
-
-          csvContent += `${timestamp},${sender},"${messageText}"\n`;
-        });
-
-        // Trigger download
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const partnerName = document.getElementById('partnerName').textContent.replace(/\s+/g, '_');
-        a.download = `conversation_${partnerName}_${new Date().toISOString().slice(0,10)}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      });
-
-      // Ban user button
-      document.querySelector('.ban-user-btn').addEventListener('click', async function() {
-        if (!selectedPartnerId) return alert("No user selected.");
-
-        const btn = this;
-        const partnerName = document.getElementById('partnerName').textContent;
-
-        if (!confirm(`Are you sure you want to ban/unban ${partnerName}?`)) return;
-
-        try {
-          const response = await fetch("/dashboard/api/toggle_ban_user/", {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/x-www-form-urlencoded",
-              "X-CSRFToken": "{{ csrf_token }}"  // Make sure to include CSRF token
-            },
-            body: `user_id=${selectedPartnerId}`
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            alert(data.message);
-
-            // Update button dynamically
-            if (data.banned) {
-              btn.classList.remove('btn-danger');
-              btn.classList.add('btn-success');
-              btn.innerHTML = `<i class="fas fa-check me-1"></i> Unban User`;
-
-              // Disable conversation: remove messages
-              const conversationContainer = document.getElementById('conversationContainer');
-              conversationContainer.innerHTML = `
-                <div class="alert alert-warning">
-                  <i class="fas fa-exclamation-triangle me-2"></i>
-                  ${partnerName} is banned. No messages can be sent or received.
-                </div>
-              `;
-            } else {
-              btn.classList.remove('btn-success');
-              btn.classList.add('btn-danger');
-              btn.innerHTML = `<i class="fas fa-ban me-1"></i> Ban User`;
-            }
-          } else {
-            alert(data.error || "Failed to toggle ban/unban.");
-          }
-        } catch (err) {
-          console.error(err);
-          alert("An error occurred while toggling ban/unban.");
+        if (!data.messages || data.messages.length === 0) {
+          conversationContainer.innerHTML = `
+            <div class="text-center py-4">
+              <i class="fas fa-comment-slash fa-2x text-muted mb-3"></i>
+              <p class="text-muted">No messages between users yet.</p>
+            </div>
+          `;
+          document.getElementById('lastMessageTime').textContent = 'No messages yet';
+          return;
         }
-      });
 
-      // Search functionality
-      document.getElementById('searchBtn').addEventListener('click', searchUsers);
-      document.getElementById('searchInput').addEventListener('keyup', function(e) {
-        if (e.key === "Enter") searchUsers();
-      });
+        // Style messages
+        conversationContainer.innerHTML = data.messages.map(msg => {
+          const isFromSelectedUser = msg.sender_id === selectedUserId;
+          return `
+            <div class="message ${isFromSelectedUser ? 'message-sent' : 'message-received'} p-3 mb-2" style="max-width: 75%;">
+              <div class="message-content">${msg.message}</div>
+              <div class="message-meta small text-muted mt-1 d-flex justify-content-between">
+                <span>${msg.sender_username}</span>
+                <span>${new Date(msg.timestamp).toLocaleString()}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
 
-      function searchUsers() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const rows = document.querySelectorAll('#usersTable tbody tr');
-        
-        rows.forEach(row => {
-          const username = row.querySelector('td:first-child .fw-bold').textContent.toLowerCase();
-          const email = row.querySelector('td:first-child .text-muted').textContent.toLowerCase();
-          
-          if (username.includes(searchTerm) || email.includes(searchTerm)) {
-            row.style.display = '';
-          } else {
-            row.style.display = 'none';
-          }
-        });
+        conversationContainer.scrollTop = conversationContainer.scrollHeight;
+
+        const lastMsg = data.messages[data.messages.length - 1];
+        document.getElementById('lastMessageTime').textContent = new Date(lastMsg.timestamp).toLocaleString();
+
+        document.querySelector('.ban-user-btn').innerHTML = `<i class="fas fa-ban me-1"></i> Ban ${partnerName}`;
+      } catch (error) {
+        conversationContainer.innerHTML = `
+          <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Error loading conversation. Please try again.
+          </div>
+        `;
+        console.error(error);
       }
+    } else {
+      passwordError.classList.remove('d-none');
+      passwordInput.value = "";
+      passwordInput.focus();
+    }
+  });
+
+  // Allow pressing Enter key for password
+  document.getElementById('adminPasswordInput').addEventListener('keyup', function(e) {
+    if (e.key === "Enter") {
+      document.getElementById('checkPasswordBtn').click();
+    }
+  });
+
+  // Export conversation button
+  document.querySelector('.export-conversation-btn').addEventListener('click', function() {
+    const conversationContainer = document.getElementById('conversationContainer');
+    const messages = conversationContainer.querySelectorAll('.message');
+
+    if (messages.length === 0) {
+      alert("No messages to export!");
+      return;
+    }
+
+    let csvContent = "Timestamp,Sender,Message\n";
+    messages.forEach(msgDiv => {
+      const messageText = msgDiv.querySelector('.message-content').textContent
+        .replace(/(\r\n|\n|\r)/gm, " ").replace(/,/g, " "); 
+      
+      const meta = msgDiv.querySelector('.message-meta');
+      const sender = meta.querySelector('span:first-child').textContent;
+      const timestamp = meta.querySelector('span:last-child').textContent;
+
+      csvContent += `${timestamp},${sender},"${messageText}"\n`;
     });
 
-    // Search functionality
-      function performSearch() {
-        currentSearchTerm = searchInput.value.trim();
-        
-        if (currentView === 'users') {
-          const filteredUsers = usersData.filter(user => 
-            user.name.toLowerCase().includes(currentSearchTerm.toLowerCase())
-          );
-          renderUsersList(filteredUsers);
-        } else if (currentView === 'partners' && currentUserId) {
-          renderPartnersList(currentUserId);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const partnerName = document.getElementById('partnerName').textContent.replace(/\s+/g, '_');
+    a.download = `conversation_${partnerName}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Ban user button
+  document.querySelector('.ban-user-btn').addEventListener('click', async function() {
+    if (!selectedPartnerId) return alert("No user selected.");
+
+    const btn = this;
+    const partnerName = document.getElementById('partnerName').textContent;
+
+    if (!confirm(`Are you sure you want to ban/unban ${partnerName}?`)) return;
+
+    try {
+      const response = await fetch("/dashboard/api/toggle_ban_user/", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-CSRFToken": csrftoken
+        },
+        body: `user_id=${selectedPartnerId}`
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(data.message);
+        if (data.banned) {
+          btn.classList.remove('btn-danger');
+          btn.classList.add('btn-success');
+          btn.innerHTML = `<i class="fas fa-check me-1"></i> Unban User`;
+          document.getElementById('conversationContainer').innerHTML = `
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              ${partnerName} is banned. No messages can be sent or received.
+            </div>
+          `;
+        } else {
+          btn.classList.remove('btn-success');
+          btn.classList.add('btn-danger');
+          btn.innerHTML = `<i class="fas fa-ban me-1"></i> Ban User`;
         }
+      } else {
+        alert(data.error || "Failed to toggle ban/unban.");
       }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while toggling ban/unban.");
+    }
+  });
+
+  // Search functionality
+  document.getElementById('searchBtn').addEventListener('click', searchUsers);
+  document.getElementById('searchInput').addEventListener('keyup', function(e) {
+    if (e.key === "Enter") searchUsers();
+  });
+
+  function searchUsers() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#usersTable tbody tr');
+    
+    rows.forEach(row => {
+      const username = row.querySelector('td:first-child .fw-bold').textContent.toLowerCase();
+      const email = row.querySelector('td:first-child .text-muted').textContent.toLowerCase();
       
-      // Setup event listeners
-      function setupEventListeners() {
-        // Search button click
-        searchBtn.addEventListener('click', performSearch);
-        
-        // Search on Enter key
-        searchInput.addEventListener('keyup', function(e) {
-          if (e.key === 'Enter') performSearch();
-        });
-        
-        // View partners button
-        document.addEventListener('click', function(e) {
-          if (e.target.closest('.view-partners-btn')) {
-            const btn = e.target.closest('.view-partners-btn');
-            currentUserId = parseInt(btn.getAttribute('data-user-id'));
-            currentView = 'partners';
-            
-            document.querySelector('.user-table').classList.add('d-none');
-            document.getElementById('partnersPanel').classList.remove('d-none');
-            
-            renderPartnersList(currentUserId);
-          }
-        })
-      };
-  </script>
+      if (username.includes(searchTerm) || email.includes(searchTerm)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+});
+</script>
 </body>
 </html>

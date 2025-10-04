@@ -66,7 +66,7 @@
         <i class="bi bi-flag-fill"></i>
         <span class="nav-text">Reported Messages</span>
       </a>
-      <a href="{% url 'useractivity' %}" class="nav-link">
+      <a href="{% url 'user_activities' %}" class="nav-link">
         <i class="bi bi-activity"></i>
         <span class="nav-text">User Activity</span>
       </a> 
@@ -74,15 +74,15 @@
         <i class="bi bi-people-fill"></i>
         <span class="nav-text">Manage Rooms/Groups</span>
       </a>
-      <a href="#" class="nav-link">
+      <a href="{% url 'view_notifications' %}" class="nav-link">
         <i class="bi bi-chat-dots-fill"></i>
-        <span class="nav-text">Messages Statistics</span>
+        <span class="nav-text">Messages</span>
       </a>
       <a href="{% url 'privacydash' %}" class="nav-link">
         <i class="bi bi-lock-fill"></i>
         <span class="nav-text">Privacy</span>
       </a>
-      <a href="{% url 'manageposts' %}" class="nav-link">
+      <a href="{% url 'reportedposts' %}" class="nav-link">
         <i class="bi bi-kanban-fill"></i>
         <span class="nav-text">Manage Posts</span>
       </a>
@@ -90,10 +90,14 @@
 
     <!-- User Section -->
     <div class="user-section">
-      <h5>Derry Cruise</h5>
-      <p>Administrator</p>
-      <button class="logout-btn">Logout</button>
-    </div>
+    <h5>{{ request.user.username }}</h5>
+    <p>Administrator</p>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="logout-btn btn btn-danger">Logout</button>
+    </form>
+</div>
+
 
     <!-- Copyright -->
     <div class="copyright">
@@ -143,10 +147,52 @@
             <span class="tooltip">Fullscreen</span>
           </button>
           <button class="header-icon-btn notification-btn" id="notificationsBtn">
-            <i class="bi bi-bell"></i>
-            <span class="notification-badge">3</span>
-            <span class="tooltip">Notifications</span>
-          </button>
+    <i class="bi bi-bell"></i>
+    <span class="notification-badge" id="notificationCount">0</span>
+    <span class="tooltip">Notifications</span>
+</button>
+
+<script>
+// Function to load notification count
+function loadNotificationCount() {
+    fetch('/get_notification_count/')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            updateNotificationCount(data.count);
+        })
+        .catch(error => {
+            console.error('Error fetching notification count:', error);
+        });
+}
+
+// Function to update notification badge count
+function updateNotificationCount(count) {
+    const badge = document.getElementById('notificationCount');
+    if (badge) {
+        badge.textContent = count;
+        
+        // Show/hide badge based on count
+        if (count > 0) {
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+// Load notification count when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotificationCount();
+    
+    // Optional: Refresh count every 60 seconds
+    setInterval(loadNotificationCount, 60000);
+});
+</script>
           <div class="user-avatar" id="userProfile">
             <img src="{% static 'DASHBOARD/pics/me.jpg' %}" alt="User Avatar">
             <span class="tooltip">Profile</span>
@@ -196,9 +242,9 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h6 class="card-title text-uppercase text-muted mb-1">Active Chats</h6>
-              <h2 class="mb-0">2,346</h2>
+              <h2 class="mb-0">20</h2>
               <span class="text-success fw-bold small">
-                <i class="bi bi-arrow-up"></i> 8.3%
+                <i class="bi bi-arrow-up"></i> 2%
               </span>
               <span class="text-muted small ms-2">vs last month</span>
             </div>
@@ -217,9 +263,9 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h6 class="card-title text-uppercase text-muted mb-1">Messages Today</h6>
-              <h2 class="mb-0">48,762</h2>
+              <h2 class="mb-0">5</h2>
               <span class="text-danger fw-bold small">
-                <i class="bi bi-arrow-down"></i> 3.2%
+                <i class="bi bi-arrow-down"></i> 3%
               </span>
               <span class="text-muted small ms-2">vs yesterday</span>
             </div>
@@ -255,37 +301,75 @@
 
   <!-- Charts Row -->
   <div class="row g-4">
-    <!-- User Activity Chart -->
-    <div class="col-lg-6">
-      <div class="card card-chart">
-        <div class="card-header bg-transparent">
-          <div class="d-flex justify-content-between align-items-center">
-            <h6 class="mb-0">User Activity</h6>
-            <div class="dropdown">
-              <button class="btn btn-sm btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                This Month
-              </button>
-              <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="#">Today</a></li>
-                <li><a class="dropdown-item" href="#">This Week</a></li>
-                <li><a class="dropdown-item" href="#">This Month</a></li>
-                <li><a class="dropdown-item" href="#">This Year</a></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="chart-container" style="height: 300px;">
-            <!-- Chart will be inserted here -->
-            <div class="d-flex justify-content-center align-items-center h-100">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-            </div>
-          </div>
+<!-- User Activity Chart -->
+<div class="col-lg-6">
+  <div class="card card-chart">
+    <div class="card-header bg-transparent">
+      <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">User Activity</h6>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            This Month
+          </button>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#">Today</a></li>
+            <li><a class="dropdown-item" href="#">This Week</a></li>
+            <li><a class="dropdown-item" href="#">This Month</a></li>
+            <li><a class="dropdown-item" href="#">This Year</a></li>
+          </ul>
         </div>
       </div>
     </div>
+    <div class="card-body">
+      <div class="chart-container" style="height: 300px;">
+        <canvas id="userActivityChart" style="height: 300px;"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Make sure Django context variables are JSON encoded
+    // Use JSON-parsed values from script tags to avoid redeclaration errors
+
+    const ctx = document.getElementById('userActivityChart').getContext('2d');
+    const userActivityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: JSON.parse(document.getElementById('labels-json').textContent),
+            datasets: [{
+                label: 'User Activity',
+                data: JSON.parse(document.getElementById('data-json').textContent),
+                borderColor: 'rgba(78, 115, 223, 1)',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: 'rgba(78, 115, 223, 1)',
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    stepSize: 1
+                },
+                x: {
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+</script>
 
     <!-- Conversation Metrics Chart -->
     <div class="col-lg-6">

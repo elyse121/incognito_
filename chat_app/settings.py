@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'chat',
     'users',
     'dashboard',
+    'mathfilters',
 ]
 
 MIDDLEWARE = [
@@ -167,8 +168,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # ← Correct
 EMAIL_HOST = 'smtp.gmail.com'  # ← Correct for Gmail
 EMAIL_PORT = 587  # ← Correct port for TLS
 EMAIL_USE_TLS = True  # ← Essential for security
-EMAIL_HOST_USER = 'elyseniyonzima202@gmail.com'  # ← Will work
-EMAIL_HOST_PASSWORD = 'nugo edas jjnb zcga'  # ← COMPROMISED
+EMAIL_HOST_USER = 'elyseniyonzima202@gmail.com'
+EMAIL_HOST_PASSWORD = 'hmpb boix dpkx acvt'  # ⚠️ Consider using environment variables
 # Session Configuration
 SESSION_COOKIE_SECURE = True  # For HTTPS
 SESSION_COOKIE_HTTPONLY = True

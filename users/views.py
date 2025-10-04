@@ -1,3 +1,4 @@
+# views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -6,8 +7,30 @@ from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.conf import settings
+from django.contrib.sessions.models import Session
+from django.utils import timezone
+import random
+import string
 
 from .models import Post, Like, Comment, UserProfile, Memory
+from dashboard.models import ManageMember, Notification
+
+# --------------------
+# HELPER
+# --------------------
+def generate_profile_code():
+    return (
+        random.choice(string.ascii_uppercase) +
+        str(random.randint(1, 9)) +
+        '-' +
+        ''.join(random.choices(string.ascii_uppercase + string.digits, k=2)) +
+        '-' +
+        ''.join(random.choices(string.ascii_uppercase + string.digits, k=2))
+    )
 
 # --- CHAT REDIRECT ---
 @login_required
@@ -85,10 +108,7 @@ def home_page(request):
 def index_page(request):
     return render(request, 'index.html')
 
-from django.contrib.auth import authenticate, login
-from django.shortcuts import render, redirect
-from django.contrib import messages
-
+# --- LOGIN ---
 def login_page(request):
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -96,25 +116,45 @@ def login_page(request):
         user = authenticate(request, username=username, password=password)
 
         if user:
-            # Check if user is banned
-            if hasattr(user, 'is_banned') and user.is_banned:  # assuming you have is_banned field
-                return redirect('banned_account_page')
+            user_profile = UserProfile.objects.get(user=user)
+            if not user_profile.is_verified:
+                messages.error(request, 'Please verify your email before logging in.')
+                return render(request, 'login.html')
 
-            login(request, user)
-            messages.success(request, 'Login successful!')
-            return redirect('posts')
+            # Check if user is banned
+            if hasattr(user, 'is_banned') and user.is_banned:  # optional field
+                messages.error(request, "Your account is banned.")
+                return redirect('banned_account_page')  # your banned page
+
+            if user.is_active:
+                login(request, user)
+                messages.success(request, 'Login successful!')
+
+                # Admin check: active + staff + superuser
+                if user.is_staff and user.is_superuser:
+                    return redirect('dashindex')  # admin dashboard
+                else:
+                    return redirect('posts')      # normal active user page
+            else:
+                messages.error(request, "This account is inactive. Please contact admin.")
         else:
             messages.error(request, 'Invalid username or password.')
 
-    # If already logged in, redirect
+    # If already logged in, redirect accordingly
     if request.user.is_authenticated:
-        # Optional: check banned status even for logged-in users
         if hasattr(request.user, 'is_banned') and request.user.is_banned:
-            return redirect(request, 'BannedAccount.html')
-        return redirect('posts')
+            messages.error(request, "Your account is banned.")
+            return redirect('banned_account_page')
+
+        if request.user.is_active:
+            if request.user.is_staff and request.user.is_superuser:
+                return redirect('dashindex')
+            else:
+                return redirect('index')
+        else:
+            messages.error(request, "Your account is inactive. Please contact admin.")
 
     return render(request, 'login.html')
-
 
 # --- LOGOUT ---
 @login_required
@@ -123,7 +163,9 @@ def logout_page(request):
     messages.success(request, 'You have been logged out successfully.')
     return redirect('/')
 
-# --- SIGNUP ---
+# --------------------
+# SIGNUP + VERIFICATION
+# --------------------
 def signup_view(request):
     if request.method == 'POST':
         email = request.POST.get('email')
@@ -132,29 +174,77 @@ def signup_view(request):
         confirm_password = request.POST.get('confirm_password')
         profile_picture = request.FILES.get('profile_picture')
 
+        # Password check
         if password1 != confirm_password:
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "message": "Passwords do not match"})
             messages.error(request, 'Passwords do not match.')
             return render(request, 'signup.html')
 
+        # Email uniqueness check
         if User.objects.filter(email=email).exists():
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "message": "Email is already in use"})
             messages.error(request, 'Email is already in use.')
             return render(request, 'signup.html')
 
+        # Create user + profile
         user = User.objects.create_user(username=username, email=email, password=password1)
-        user_profile = UserProfile.objects.get(user=user)
+        user_profile, created = UserProfile.objects.get_or_create(user=user)
+        user_profile.profile_code = generate_profile_code()
+        user_profile.verification_token = user_profile.generate_verification_token()
         if profile_picture:
             user_profile.profile_picture = profile_picture
-            user_profile.save()
+        user_profile.save()
 
-        messages.success(request, 'Signup successful! You can now log in.')
+        # Build verification link
+        verification_link = f"http://127.0.0.1:8000/verify/?token={user_profile.verification_token}"
+
+        # Send email
+        send_mail(
+            subject="Verify Your Best Friends Portal Account",
+            message=(
+                f"Hello {username},\n\n"
+                f"Your profile code is: {user_profile.profile_code}\n\n"
+                f"Please verify your email by clicking this link: {verification_link}\n"
+                f"This link expires in 30 minutes."
+            ),
+            from_email="elyseniyonzima202@gmail.com",
+            recipient_list=[email],
+            fail_silently=False,
+        )
+
+        # Response (Ajax vs normal form)
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({'success': True, 'message': 'Please check your email to verify your account.'})
+
+        messages.success(request, 'Signup successful! Please check your email to verify your account.')
         return redirect('login')
 
     if request.user.is_authenticated:
         return redirect('posts')
     return render(request, 'signup.html')
 
-# --- SOULS (MEMORY WALL) ---
 
+def verify_email(request):
+    """Handle email verification"""
+    token = request.GET.get('token')
+    if not token:
+        messages.error(request, 'Invalid verification link.')
+        return render(request, 'verify.html')
+
+    try:
+        user_profile = UserProfile.objects.get(verification_token=token, is_verified=False)
+        user_profile.is_verified = True
+        user_profile.verification_token = None  # expire token
+        user_profile.save()
+        messages.success(request, 'Email verified! You can now log in.')
+        return render(request, 'verify.html')
+    except UserProfile.DoesNotExist:
+        messages.error(request, 'Invalid or expired verification link.')
+        return render(request, 'verify.html')
+
+# --- SOULS (MEMORY WALL) ---
 @login_required
 def souls_tunnel(request):
     # ✅ UPDATED: fetch all memories from all users, not just the current user
@@ -204,33 +294,12 @@ def add_memory(request):
 def go_to_souls(request):
     return redirect('souls-tunnel')
 
-
-
 #banned accounts
-def banned_account_page(request):
-    return render(request, "BannedAccount.html")
-
 def unbann_accounts(request):
     return render(request, 'account_unbanned.html')
 
 def account_banned(request):
     return render(request, 'account_banned.html')
-
-
-
-
-
-
-from django.http import JsonResponse
-from django.views.decorators.http import require_POST
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-from django.conf import settings
-from django.contrib.sessions.models import Session
-from django.utils import timezone
-from django.shortcuts import get_object_or_404
-from dashboard.models import ManageMember
 
 @require_POST
 def ban_user(request, member_id):
@@ -273,83 +342,41 @@ def unban_user(request, member_id):
 
     return JsonResponse({"success": True, "new_status": member.status})
 
-
-"""def banned_page(request):
-    return render(request, 'BannedAccount.html')"""
-
-
-"""def contact_admin(request):
+def banned_page(request):
     if request.method == 'POST':
         email = request.POST.get('email')
-        message = request.POST.get('message')
-        admin_email = settings.DEFAULT_FROM_EMAIL
-
-        full_message = f"Message from {email}:\n\n{message}"
-
-        send_mail(
-            subject='Account Ban Appeal Message',
-            message=full_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[admin_email],
-        )
-        # For non-AJAX pages you can still use messages framework if desired,
-        # but it's unrelated to the toggle button flow now.
-        return render(request, 'BannedAccount.html', {
-            "sent": True
-        })
-
-    return render(request, 'BannedAccount.html')"""
-
-
-#admin contact form for banned users
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from dashboard.models import Notification
-
-@login_required
-def banned_page_contact_admin(request):
-    # Only banned users should see this page
-    if not request.user.is_banned:  # assuming you have a field on User
-        return redirect('dashindex')      # redirect normal users
-
-    if request.method == "POST":
-        email = request.POST.get('email')
-        message_text = request.POST.get('message')
-
-        # Save notification
-        Notification.objects.create(
-            sender=request.user,
-            message=f"{email}: {message_text}"
-        )
-        messages.success(request, "Your message has been sent to the admin!")
-        return redirect('posts')
-
+        message_content = request.POST.get('message')
+        
+        # Get the banned user (you might need to adjust this logic)
+        # This assumes the user is logged in even when banned
+        if request.user.is_authenticated:
+            sender = request.user
+        else:
+            # If user is not logged in, you might need to get the user by email
+            # or create a placeholder user. Adjust based on your needs.
+            try:
+                sender = User.objects.get(email=email)
+            except User.DoesNotExist:
+                # Create a notification without a user if needed
+                sender = None
+        
+        # Create the notification
+        if sender:
+            Notification.objects.create(
+                sender=sender,
+                message=message_content,
+                email=email
+            )
+            messages.success(request, 'Your message has been sent to the admin.')
+        else:
+            # Handle case where we can't find a user
+            # You might want to log this or handle differently
+            messages.error(request, 'There was an error sending your message.')
+        
+        return redirect('thank_you')
+    
     return render(request, 'BannedAccount.html')
 
-#contact admin form for banned users
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from users.forms import NotificationForm
-from dashboard.models import Notification
 
-@login_required  # Ensure the user is logged in
-def banned_account_page_contact_admin(request):
-    if request.method == 'POST':
-        form = NotificationForm(request.POST)
-        if form.is_valid():
-            # Save the form data and assign the sender
-            notification = form.save(commit=False)  # Don't save yet
-            notification.sender = request.user  # Set the sender as the logged-in user
-            notification.save()  # Save to the database
-            
-            messages.success(request, "Your message has been sent to the admin.")
-            return redirect('posts')  # Redirect after successful submission
-        else:
-            messages.error(request, "There was an error submitting your message.")
-    else:
-        form = NotificationForm()
-
-    return render(request, 'BannedAccount.html', {'form': form})
-
+def thank_you(request):
+    return render(request, 'thank_you.html')
