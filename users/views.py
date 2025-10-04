@@ -1,4 +1,4 @@
-# views.py
+# views.py (updated signup_view to store email without verification)
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -7,7 +7,6 @@ from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
@@ -116,11 +115,6 @@ def login_page(request):
         user = authenticate(request, username=username, password=password)
 
         if user:
-            user_profile = UserProfile.objects.get(user=user)
-            if not user_profile.is_verified:
-                messages.error(request, 'Please verify your email before logging in.')
-                return render(request, 'login.html')
-
             # Check if user is banned
             if hasattr(user, 'is_banned') and user.is_banned:  # optional field
                 messages.error(request, "Your account is banned.")
@@ -164,7 +158,7 @@ def logout_page(request):
     return redirect('/')
 
 # --------------------
-# SIGNUP + VERIFICATION
+# SIGNUP
 # --------------------
 def signup_view(request):
     if request.method == 'POST':
@@ -181,68 +175,24 @@ def signup_view(request):
             messages.error(request, 'Passwords do not match.')
             return render(request, 'signup.html')
 
-        # Email uniqueness check
-        if User.objects.filter(email=email).exists():
-            if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"success": False, "message": "Email is already in use"})
-            messages.error(request, 'Email is already in use.')
-            return render(request, 'signup.html')
-
-        # Create user + profile
+        # Create user + profile (store email but no verification)
         user = User.objects.create_user(username=username, email=email, password=password1)
         user_profile, created = UserProfile.objects.get_or_create(user=user)
         user_profile.profile_code = generate_profile_code()
-        user_profile.verification_token = user_profile.generate_verification_token()
         if profile_picture:
             user_profile.profile_picture = profile_picture
         user_profile.save()
 
-        # Build verification link
-        verification_link = f"http://127.0.0.1:8000/verify/?token={user_profile.verification_token}"
-
-        # Send email
-        send_mail(
-            subject="Verify Your Best Friends Portal Account",
-            message=(
-                f"Hello {username},\n\n"
-                f"Your profile code is: {user_profile.profile_code}\n\n"
-                f"Please verify your email by clicking this link: {verification_link}\n"
-                f"This link expires in 30 minutes."
-            ),
-            from_email="elyseniyonzima202@gmail.com",
-            recipient_list=[email],
-            fail_silently=False,
-        )
-
         # Response (Ajax vs normal form)
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({'success': True, 'message': 'Please check your email to verify your account.'})
+            return JsonResponse({'success': True, 'message': 'Account created successfully!'})
 
-        messages.success(request, 'Signup successful! Please check your email to verify your account.')
+        messages.success(request, 'Signup successful! You can now log in.')
         return redirect('login')
 
     if request.user.is_authenticated:
         return redirect('posts')
     return render(request, 'signup.html')
-
-
-def verify_email(request):
-    """Handle email verification"""
-    token = request.GET.get('token')
-    if not token:
-        messages.error(request, 'Invalid verification link.')
-        return render(request, 'verify.html')
-
-    try:
-        user_profile = UserProfile.objects.get(verification_token=token, is_verified=False)
-        user_profile.is_verified = True
-        user_profile.verification_token = None  # expire token
-        user_profile.save()
-        messages.success(request, 'Email verified! You can now log in.')
-        return render(request, 'verify.html')
-    except UserProfile.DoesNotExist:
-        messages.error(request, 'Invalid or expired verification link.')
-        return render(request, 'verify.html')
 
 # --- SOULS (MEMORY WALL) ---
 @login_required
@@ -316,13 +266,6 @@ def ban_user(request, member_id):
         if str(user.id) == str(data.get('_auth_user_id')):
             session.delete()
 
-    # Email notification
-    subject = "Your Account Has Been Banned"
-    html_message = render_to_string('account_banned.html', {'user': user})
-    plain_message = strip_tags(html_message)
-    send_mail(subject, plain_message, settings.DEFAULT_FROM_EMAIL, [user.email],
-              html_message=html_message)
-
     return JsonResponse({"success": True, "new_status": member.status})
 
 
@@ -333,12 +276,6 @@ def unban_user(request, member_id):
 
     member.status = True
     member.save(update_fields=["status"])
-
-    subject = "Your Account Has Been Reactivated"
-    html_message = render_to_string('account_unbanned.html', {'user': user})
-    plain_message = strip_tags(html_message)
-    send_mail(subject, plain_message, settings.DEFAULT_FROM_EMAIL, [user.email],
-              html_message=html_message)
 
     return JsonResponse({"success": True, "new_status": member.status})
 

@@ -20,7 +20,6 @@ urlpatterns = [
     path('souls/', views.souls_tunnel, name='souls-tunnel'),
     path('tunnel/', views.go_to_souls, name='go-to-souls'),
     path('add-memory/', views.add_memory, name='add-memory'),
-    path('verify/', views.verify_email, name="verify-email"),  # New route
     
     #banned accounts
     path('unbann_accounts/', views.unbann_accounts, name='unbann_accounts'),
@@ -31,5 +30,4 @@ urlpatterns = [
     path("unban-user/<int:member_id>/", views.unban_user, name="unban_user"),
     path('banned/', views.banned_page, name='banned_page'),
     path('thank-you/', views.thank_you, name='thank_you'),
-    path('verify/', views.verify_email, name="verify-email"),
 ]
